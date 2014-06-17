@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Client</string>
+    <string name="titleConnection">Client!</string>
+    <string name="action_settings">Settings</string>
+    <string name="titleGetTicket">Get Ticket</string>
+    <string name="titleGetTicketList">Get Ticket List</string>
+    <string name="errorConnectionToServer">Error connection to server!</string>
+
+</resources>
