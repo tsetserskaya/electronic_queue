@@ -78,6 +78,7 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
             buttonGetTicket.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
+                    Log.d(MainActivity.LOG_CLIENT, "test button");
                     try {
                         objectOutputStream.writeUTF(GT);
                         objectOutputStream.flush();
@@ -103,6 +104,10 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
             });
 
             connectAndReciveData();
+
+
+
+
 
 
         } catch (IOException e) {
@@ -144,6 +149,8 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
 
             objectInputStream = new ObjectInputStream(socket.getInputStream());
             objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+
+
 
 
             while (true) {
