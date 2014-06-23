@@ -2,10 +2,16 @@
 <pre-dex-items>
 
     <item
-        dex="C:\Users\Александр\Dropbox\java\sh++\android\electronicqueue\Client\build\intermediates\pre-dexed\debug\untitled-b2fa9e2a7329e80b3a489ca920ed8786c208e9ae.jar"
-        jar="C:\Users\Александр\Dropbox\java\sh++\android\electronicqueue\Client\libs\untitled.jar"
+        dex="C:\Users\Олег\AndroidStudioProjects\electronicqueue\Monitor\build\intermediates\pre-dexed\debug\support-v4-19.1.0-4cf6c826149610e5fabef102a8bd68e8eea9e671.jar"
+        jar="C:\android_studio\sdk\extras\android\m2repository\com\android\support\support-v4\19.1.0\support-v4-19.1.0.jar"
         jumboMode="false"
         revision="19.1.0"
-        sha1="0cd7ba48f844e898d0dffaad9a314ae3a15ea7ed"/>
+        sha1="85f201b380937e61a9dce6ca90ccf6872abbfb67"/>
+    <item
+        dex="C:\Users\Олег\AndroidStudioProjects\electronicqueue\Monitor\build\intermediates\pre-dexed\debug\classes-3db589aea2d2d9a5c76108cb43e3a28a3543fdf5.jar"
+        jar="C:\Users\Олег\AndroidStudioProjects\electronicqueue\build\intermediates\exploded-aar\com.android.support\appcompat-v7\19.1.0\classes.jar"
+        jumboMode="false"
+        revision="19.1.0"
+        sha1="3499ceba05ca1f6037c6a2fad73df8f636224a28"/>
 
 </pre-dex-items>
