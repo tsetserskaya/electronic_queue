@@ -12,8 +12,8 @@ public class DataBaseServerElectronicQueue extends SQLiteOpenHelper implements B
     public static final int BASE_VERSION = 1;
 
     public static final String NAME_TABLE = "tableWindow";
+    public static final String COLUMN_NUMBER_TICKET = "numberTicket";
     public static final String COLUMN_WINDOW = "window";
-    public static final String COLUMN_NUMBER_TICKET = "positionInTheQueue";
 
     public static final String SQL_TABLE_CREATE = "CREATE TABLE " + NAME_TABLE + " (" +
             DataBaseServerElectronicQueue._ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +

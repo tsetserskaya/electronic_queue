@@ -6,7 +6,6 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,7 +20,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.StringTokenizer;
 
 public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implements Serializable {
@@ -29,21 +27,13 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
 
     public static final String CONNECTION_TRUE = "Connection true!";
     public static final String GT = "gt"; //get ticket
-    public static final String GTL = "gtl"; //get ticket list
 
-    private String command = null;
     private TextView textViewConnection;
     private Button buttonGetTicket;
     private ObjectOutputStream objectOutputStream;
     private ObjectInputStream objectInputStream;
-    private Button buttonGetTicketList;
-    private ListView listViewTicketLIst;
-    private ArrayList<MyBundle> list;
-    private AdapterListTicket adapter;
     private TextView textViewNumberTicket;
-    private TextView textViewNumberWindow;
     private int numberTicket;
-    private int numberWindow;
     private Activity activity;
     private String ipAddress;
     private int port;
@@ -55,79 +45,37 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
 
         activity = params[0];
 
-//        WifiManager wifiManager = (WifiManager) activity.getSystemService(Context.WIFI_SERVICE);
-//        int ip = wifiManager.getConnectionInfo().getIpAddress();
-//        String ipString = String.format("%d.%d.%d.%d", (ip & 0xff), (ip >> 8 & 0xff), (ip >> 16 & 0xff), (ip >> 24 & 0xff));
-//        Log.d(MainActivity.LOG_CLIENT, "My ip address: " + ipString);
 
         textViewConnection = (TextView) activity.findViewById(R.id.textViewConnection);
-//        textViewConnection.setText(ipString);
-
         buttonGetTicket = (Button) activity.findViewById(R.id.buttonGetTicket);
-        buttonGetTicketList = (Button) activity.findViewById(R.id.buttonGetTicketList);
         textViewNumberTicket = (TextView) activity.findViewById(R.id.textViewNumberTicket);
-        textViewNumberWindow = (TextView) activity.findViewById(R.id.textViewNumberWindow);
-        listViewTicketLIst = (ListView) activity.findViewById(R.id.listViewTicketList);
 
 
         try {
 
             getIpAddressAndPort();
 
-
             buttonGetTicket.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Log.d(MainActivity.LOG_CLIENT, "test button");
                     try {
                         objectOutputStream.writeUTF(GT);
                         objectOutputStream.flush();
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    command = GT;
                 }
             });
 
-
-            buttonGetTicketList.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    try {
-                        objectOutputStream.writeUTF(GTL);
-                        objectOutputStream.flush();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                    command = GTL;
-                }
-            });
-
-            connectAndReciveData();
-
-
-
-
-
+            connectAndReceiveData();
 
         } catch (IOException e) {
-
-
-//            try {
-//                Thread.sleep(5000);
-//            } catch (InterruptedException e1) {
-//                e1.printStackTrace();
-//            }
-
-//            connectAndReciveData();
-
+            e.printStackTrace();
         }
-
-
         return null;
     }
 
-    private void connectAndReciveData() {
+    private void connectAndReceiveData() {
         try {
             socket = new Socket(ipAddress, port);
 
@@ -139,62 +87,23 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
                 }
             });
 
-
-//            textViewConnection.post(new Runnable() {
-//                @Override
-//                public void run() {
-//
-//                }
-//            });
-
             objectInputStream = new ObjectInputStream(socket.getInputStream());
             objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
 
-
-
+            objectOutputStream.writeUTF(GT);
+            objectOutputStream.flush();
 
             while (true) {
-
-                Object object = objectInputStream.readObject();
-
-                if (command.equals(GT)) {
-
-                    MyBundle myBundle = (MyBundle) object;
-                    numberWindow = myBundle.getNumberWindow();
-                    numberTicket = myBundle.getNumberTicket();
-
-
-                    activity.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            textViewNumberTicket.setText(String.valueOf(numberTicket));
-                            textViewNumberWindow.setText(String.valueOf(numberWindow));
-                        }
-                    });
-
-                    Log.d(MainActivity.LOG_CLIENT, "numberTicket: " + String.valueOf(numberTicket) + ", numberWindow: " + String.valueOf(numberWindow));
-                    publishProgress("numberTicket: " + String.valueOf(numberTicket) + ", numberWindow: " + String.valueOf(numberWindow));
-
-
-                } else if (command.equals(GTL)) {
-
-                    list = (ArrayList<MyBundle>) object;
-
-                    for (MyBundle myBundle : list) {
-                        int numberWindow = myBundle.getNumberWindow();
-                        int numberTicket = myBundle.getNumberTicket();
-                        Log.d(MainActivity.LOG_CLIENT, "numberTicket: " + String.valueOf(numberTicket) + ", numberWindow: " + String.valueOf(numberWindow));
+                numberTicket = objectInputStream.readInt();
+                textViewNumberTicket.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        textViewNumberTicket.setText(String.valueOf(numberTicket));
                     }
+                });
 
-                    adapter = new AdapterListTicket(activity, list);
-                    activity.runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            listViewTicketLIst.setAdapter(adapter);
-                        }
-                    });
-
-                }
+                Log.d(MainActivity.LOG_CLIENT, "numberTicket: " + String.valueOf(numberTicket));
+                publishProgress("numberTicket: " + String.valueOf(numberTicket));
 
             }
 
@@ -212,9 +121,8 @@ public class ClientAsyncTask extends AsyncTask<Activity, String, Void> implement
             } catch (InterruptedException e1) {
                 e1.printStackTrace();
             }
-            connectAndReciveData();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            connectAndReceiveData();
+
         } finally {
             try {
                 socket.close();

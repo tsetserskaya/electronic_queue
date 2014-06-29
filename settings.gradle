@@ -1,1 +1,1 @@
-include ':Server', ':Client', ':Monitor'
+include ':Server', ':Monitor', ':Operator', 'Terminal'

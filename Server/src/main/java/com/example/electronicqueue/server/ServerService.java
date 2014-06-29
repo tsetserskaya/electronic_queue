@@ -15,21 +15,17 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 public class ServerService extends Service {
 
 
     public static final String GT = "gt"; //get ticket
     public static final String GTL = "gtl"; //get ticket list
-    //    public Socket socket;
+    public static final String OP = "op";   //operator
+    public static final String MON = "mon";   //monitor
     private int numberTicket = 1;
-    private ObjectOutputStream objectOutputStream;
-    private ObjectInputStream objectInputStream;
-    //    private ServerSocket serverSocket;
-    private SQLiteDatabase database;
-//    public Socket socket;
-//    public ServerSocket serverSocket;
+
+    private final Object mutex = new Object();
 
 
     @Override
@@ -39,24 +35,27 @@ public class ServerService extends Service {
 
 
         new Thread(new Runnable() {
-
-//            Socket socket;
+            private ServerSocket serverSocket;
+            private Socket socket;
 
             @Override
             public void run() {
                 try {
-                    ServerSocket serverSocket = new ServerSocket(MainActivity.PORT);
+                    serverSocket = new ServerSocket(MainActivity.PORT);
                     while (true) {
-                        Socket socket = serverSocket.accept();
-                        Test test = new Test(socket);
-                        test.start();
+                        socket = serverSocket.accept();
+                        NewConnection newConnection = new NewConnection(socket);
+                        newConnection.start();
                     }
-//                    } finally {
-////                        socket.close();
-////                        serverSocket.close();
-//                    }
                 } catch (IOException e) {
                     e.printStackTrace();
+                } finally {
+                    try {
+                        serverSocket.close();
+                        socket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }).start();
@@ -71,11 +70,15 @@ public class ServerService extends Service {
         return null;
     }
 
-    private class Test extends Thread {
+
+    private class NewConnection extends Thread {
 
         Socket socket;
+        DataBaseServerElectronicQueue dataBaseServerElectronicQueue = new DataBaseServerElectronicQueue(getApplicationContext());
+        private SQLiteDatabase database = dataBaseServerElectronicQueue.getWritableDatabase();
 
-        private Test(Socket socket) {
+
+        private NewConnection(Socket socket) {
             this.socket = socket;
         }
 
@@ -83,61 +86,165 @@ public class ServerService extends Service {
         public void run() {
             Log.d(MainActivity.LOG_SERVER, "Connection true!");
 
-            DataBaseServerElectronicQueue dataBaseServerElectronicQueue = new DataBaseServerElectronicQueue(getApplicationContext());
-            database = dataBaseServerElectronicQueue.getWritableDatabase();
 
             try {
-                objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
-                objectInputStream = new ObjectInputStream(socket.getInputStream());
+                ObjectOutputStream objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+                ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
 
 
-                while (true) {
-
-                    String command = objectInputStream.readUTF();
-                    Log.d(MainActivity.LOG_SERVER, "Get command " + command);
+                String command = objectInputStream.readUTF();
+                Log.d(MainActivity.LOG_SERVER, "Get command " + command);
 
 
-                    if (command.equals(GT)) {
-
-                        int numberTicket = ServerService.this.numberTicket++;
-                        int numberWindow = new Random().nextInt(5) + 1;
-                        Log.d(MainActivity.LOG_SERVER, "numberTicket: " + String.valueOf(numberTicket) + ", numberWindow: " + String.valueOf(numberWindow));
-
-
-                        ContentValues contentValues = new ContentValues();
-                        contentValues.put(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET, numberTicket);
-                        contentValues.put(DataBaseServerElectronicQueue.COLUMN_WINDOW, numberWindow);
-                        database.insert(DataBaseServerElectronicQueue.NAME_TABLE, null, contentValues);
-
-                        MyBundle myBundle = new MyBundle(numberTicket, numberWindow);
-                        objectOutputStream.writeObject(myBundle);
-                        objectOutputStream.flush();
-                    } else if (command.equals(GTL)) {
-
-                        Cursor cursor = database.query(DataBaseServerElectronicQueue.NAME_TABLE, null, null, null, null, null, null);
-                        int columnIndexPosition = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET);
-                        int columnIndexWindow = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_WINDOW);
-
-                        List<MyBundle> list = new ArrayList<MyBundle>();
-
-                        if (cursor.moveToFirst()) {
-                            do {
-                                int numberTicket = cursor.getInt(columnIndexPosition);
-                                int numberWindow = cursor.getInt(columnIndexWindow);
-                                MyBundle myBundle = new MyBundle(numberTicket, numberWindow);
-                                list.add(myBundle);
-                            } while (cursor.moveToNext());
-                        }
-
-
-                        objectOutputStream.writeObject(list);
-                        objectOutputStream.flush();
-                    }
-
+                if (command.equals(GT)) {
+                    methodGT(objectOutputStream, objectInputStream);
+                } else if (command.equals(OP)) {
+                    methodOP(objectOutputStream, objectInputStream);
+                } else if (command.equals(MON)) {
+                    methodMON(objectOutputStream, objectInputStream);
+                } else if (command.equals(GTL)) {
+                    methodGTL(objectOutputStream);
+                    //deprecated
                 }
+
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+
+        private void methodGT(ObjectOutputStream objectOutputStream, ObjectInputStream objectInputStream) throws IOException {
+            while (true) {
+
+                objectInputStream.readUTF();
+
+                Integer numberTicketLocal;
+                synchronized (mutex) {
+                    numberTicketLocal = numberTicket++;
+                    Log.d(MainActivity.LOG_SERVER, "generated numberTicket: " + String.valueOf(numberTicketLocal));
+
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET, numberTicketLocal);
+                    database.insert(DataBaseServerElectronicQueue.NAME_TABLE, null, contentValues);
+                }
+
+                objectOutputStream.writeInt(numberTicketLocal);
+                objectOutputStream.flush();
+            }
+        }
+
+
+        private void methodOP(ObjectOutputStream objectOutputStream, ObjectInputStream objectInputStream) throws IOException {
+            while (true) {
+
+                Integer numberWindow = objectInputStream.readInt();
+
+                Integer numberTicket = null;
+                Log.d(MainActivity.LOG_SERVER, "Get number window: " + String.valueOf(numberWindow));
+
+
+                String selection = "window is null";
+                synchronized (mutex) {
+                    Cursor cursor = database.query(DataBaseServerElectronicQueue.NAME_TABLE, null, selection, null, null, null, DataBaseServerElectronicQueue._ID, "1");
+                    /** запрос потом сменить, сортировать нужно не оп ID а по номеру билета */
+                    int columnIndexId = cursor.getColumnIndex(DataBaseServerElectronicQueue._ID);
+                    int columnIndexNumberTicket = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET);
+
+                    int id = 0;
+                    if (cursor.moveToFirst()) {
+                        id = cursor.getInt(columnIndexId);
+                        numberTicket = cursor.getInt(columnIndexNumberTicket);
+                        Log.d(MainActivity.LOG_SERVER, "First empty numberTicket: " + String.valueOf(numberTicket) + ", id: " + id + ", add window: " + numberWindow);
+                    }
+
+                    ContentValues contentValues = new ContentValues();
+                    contentValues.put(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET, numberTicket);
+                    contentValues.put(DataBaseServerElectronicQueue.COLUMN_WINDOW, numberWindow);
+                    database.update(DataBaseServerElectronicQueue.NAME_TABLE, contentValues, "_id = " + String.valueOf(id), null);
+                }
+
+                if (numberTicket != null) {
+                    objectOutputStream.writeInt(numberTicket);
+                } else {
+                    objectOutputStream.writeInt(-1);
+                    Log.d(MainActivity.LOG_SERVER, "No empty numberTicket");
+                }
+                objectOutputStream.flush();
+
+            }
+        }
+
+
+        private void methodMON(ObjectOutputStream objectOutputStream, ObjectInputStream objectInputStream) throws IOException {
+            while (true) {
+
+                objectInputStream.readUTF();
+
+                synchronized (mutex) {
+                    String selection = "window is null";
+                    Cursor cursor = database.query(DataBaseServerElectronicQueue.NAME_TABLE, null, selection, null, null, null, DataBaseServerElectronicQueue._ID, "1");
+                    /** запрос потом сменить, сортировать нужно не оп ID а по номеру билета */
+                    int columnIndexId = cursor.getColumnIndex(DataBaseServerElectronicQueue._ID);
+                    int columnIndexNumberTicket = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET);
+                    int columnIndexWindow = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_WINDOW);
+
+
+                    int id = 0;
+                    if (cursor.moveToFirst()) {
+                        id = cursor.getInt(columnIndexId);
+                        Log.d(MainActivity.LOG_SERVER, "First empty numberTicket id: " + id);
+
+                    }
+
+                    int beginQuery = id - 6;
+                    int endQuery = id + 5;
+
+                    selection = "_id > " + beginQuery + " and _id < " + endQuery;
+                    cursor = database.query(DataBaseServerElectronicQueue.NAME_TABLE, null, selection, null, null, null, DataBaseServerElectronicQueue._ID);
+
+                    List<MyBundle> list = new ArrayList<MyBundle>();
+
+                    if (cursor.moveToFirst()) {
+                        do {
+                            int numberTicket = cursor.getInt(columnIndexNumberTicket);
+                            int numberWindow = cursor.getInt(columnIndexWindow);
+                            id = cursor.getInt(columnIndexId);
+                            MyBundle myBundle = new MyBundle(numberTicket, numberWindow);
+                            Log.d(MainActivity.LOG_SERVER, "Send numberTicket: " + numberTicket + " and numberWindow: " + numberWindow + " its id: " + id);
+                            list.add(myBundle);
+                        } while (cursor.moveToNext());
+                    }
+
+                    objectOutputStream.writeObject(list);
+                    objectOutputStream.flush();
+                }
+            }
+        }
+
+        @Deprecated
+        private void methodGTL(ObjectOutputStream objectOutputStream) throws IOException {
+
+            Cursor cursor = database.query(DataBaseServerElectronicQueue.NAME_TABLE, null, null, null, null, null, null);
+            int columnIndexNumberTicket = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_NUMBER_TICKET);
+            int columnIndexWindow = cursor.getColumnIndex(DataBaseServerElectronicQueue.COLUMN_WINDOW);
+
+            List<MyBundle> list = new ArrayList<MyBundle>();
+
+            if (cursor.moveToFirst()) {
+                do {
+                    int numberTicket = cursor.getInt(columnIndexNumberTicket);
+                    int numberWindow = cursor.getInt(columnIndexWindow);
+                    MyBundle myBundle = new MyBundle(numberTicket, numberWindow);
+                    list.add(myBundle);
+                } while (cursor.moveToNext());
+            }
+
+
+            objectOutputStream.writeObject(list);
+            objectOutputStream.flush();
+        }
+
+
     }
+
+
 }
